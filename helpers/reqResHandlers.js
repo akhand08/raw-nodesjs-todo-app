@@ -21,21 +21,54 @@ handler.resReqHandlers = function (req, res) {
     const formatedPath = path.replace(/^\/+|\/+$/g, "");
     const queryObj = reqURL.query;
     const incomingContentType = headerObj["content-type"];
+    let body = "";
+    console.log(headerObj);
+
+
+    const reqProps = {
+        method,
+        headerObj,
+        reqURL,
+        path,
+        formatedPath,
+        queryObj,
+    }
     
 
-    const contentType = headerObj["content-type"];
-    const acceptebleContentType = ["application/json", "text/plain"];
+    
+    const acceptableContentType = ["application/json", "text/plain", "text/html"];
 
-    if(acceptebleContentType.includes(incomingContentType)) {
+    if(acceptableContentType.includes(incomingContentType)) {
 
-        console.log(formatedPath);
+        let rawBodyData = [];
 
-        const chosenRoute = routes[formatedPath] ? routes[formatedPath] : notFoundHandler;
-        chosenRoute();
-        
+        req.on("data", (chunk) => {
+            rawBodyData.push(chunk);
+        })
 
 
-    }else {
+        req.on("end", () => {
+
+            body = Buffer.concat(rawBodyData);
+            
+            const chosenRoute = routes[formatedPath] ? routes[formatedPath] : notFoundHandler;
+            console.log(formatedPath);
+
+            chosenRoute(reqProps, (statusCode, content) => {
+
+                statusCode = typeof(statusCode) === "number" ? statusCode : 500;
+                content = typeof(content) === "object"? content: {};
+
+                res.writeHead(statusCode);
+                res.write(JSON.stringify(content));
+                res.end();
+            });
+
+        } )
+
+
+    }
+    else {
         res.end("The content type is not acceptable");
     }
 
